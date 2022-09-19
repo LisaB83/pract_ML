@@ -1,0 +1,118 @@
+---
+title: "Practical Machine Learning - Final Project"
+author: "Lisa Benamati"
+date: "9/15/2022"
+output: 
+  html_document:
+  keep_md: yes
+---
+
+
+# Introduction
+This is the final report for Practical Machine Learning course. 
+
+In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise. This is the “classe” variable in the training set. 
+The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har. 
+
+## Loading Data and Libraries
+Loading all the libraries and the data
+```{r results='hide', message=FALSE}
+
+library(caret)
+
+set.seed(1234)
+```
+```{r}
+df_train <- read.csv("pml-training.csv")
+df_test <- read.csv("pml-testing.csv")
+
+df_train <- df_train[,-1]
+df_test <- df_test[,-1]
+
+
+dim(df_train)
+dim(df_test)
+```
+
+The training data set contains 19622 observations and 159 variables, while the testing data set contains 20 observations and 159 variables. 
+
+## Data cleaning
+Check the missing values and removing them.
+```{r}
+non_zero_var <- nearZeroVar(df_train)
+
+df_train_clean <- df_train[,-non_zero_var]
+df_test_clean <- df_test[,-non_zero_var]
+
+dim(df_train_clean)
+dim(df_test_clean)
+
+```
+We clean the dataset removing the columns that contains missing values (NaN) with a threshold of 95%.
+
+```{r}
+na_val_col <- sapply(df_train_clean, function(x) mean(is.na(x))) > 0.95
+
+df_train_clean <- df_train_clean[,na_val_col == FALSE]
+df_test_clean <- df_test_clean[,na_val_col == FALSE]
+
+dim(df_train_clean)
+dim(df_test_clean)
+```
+
+We remove the variables not numeric that don't contribute to our model.
+```{r}
+df_train_clean <- df_train_clean[,7:58]
+df_test_clean <- df_test_clean[,7:58]
+
+dim(df_train_clean)
+dim(df_test_clean)
+colnames(df_train_clean)
+```
+
+## Machine Learning models
+
+We run two machine learning methods: random forest  and classification three. And we check the performance of these two model to choose the best one.
+
+```{r}
+inTrain <- createDataPartition(df_train_clean$classe, p=0.6, list=FALSE)
+training <- df_train_clean[inTrain,]
+testing <- df_train_clean[-inTrain,]
+
+dim(training)
+dim(testing)
+training$classe = factor(training$classe)
+testing$classe = factor(testing$classe)
+```
+
+```{r}
+Rpart_fit <- train(classe ~ ., data = training, method="rpart")
+
+Rpart_prediction <- predict(Rpart_fit, testing)
+confusionMatrix(Rpart_prediction, testing$classe)
+
+```
+
+
+
+```{r}
+RF_fit <- train(classe ~ ., data = training, method = "rf", ntree = 100)
+RF_prediction <- predict(RF_fit, testing)
+confusionMatrix(RF_prediction, testing$classe)
+
+```
+
+
+From the results, it appears that the random forest model has the best accuracy.
+
+
+## Conclusion
+Finally, we chose the random forest model to the testing dataset for submission result.
+
+```{r}
+Answer <- predict(RF_fit, df_test_clean )
+Answer
+```
+
+
+
